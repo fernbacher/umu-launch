@@ -26,8 +26,6 @@ This script provides a Terminal User Interface (TUI) built with [gum](https://gi
 1.  Make the script executable: `chmod +x umu-launch.sh`
 2.  Run it: `./umu-launch-gum.sh`
 
-## Preview
-
-![Preview](preview.mp4)
+![Preview](preview.gif)
 
 This project was vibecoded using [pieces](https://pieces.app/).
