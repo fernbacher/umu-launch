@@ -7,7 +7,7 @@ This script provides a Terminal User Interface (TUI) built with [gum](https://gi
 **Features:**
 
 * **Game Selection:** Browse your filesystem to select the game's `.exe` file.
-* **Proton Detection & Selection:** Automatically finds Proton versions in common Steam compatibility tool directories and lets you choose which one to use.
+* **Proton Detection & Selection:** Automatically finds Proton versions in common Steam compatibility tool directories aswell as steam's official proton versions and lets you choose which one to use.
 * **Custom Input:** Add extra environment variables (e.g., `DXVK_HUD=1`) or command-line arguments specific to a launch.
 * **Universal Prefix:** Uses a single Wine prefix named `umu-default` for all games launched via the script.
 * **Automatic Logging:** Creates timestamped log files in `~/.local/share/umu-launch-gum/logs/` containing the executed command and the game's terminal output for debugging.
