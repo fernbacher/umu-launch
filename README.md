@@ -12,6 +12,7 @@ A script providing a Terminal User Interface (TUI) using `gum` to launch Windows
 * Integrates with `Gamescope`, `Gamemode`, and `MangoHud` if installed (optional).
 * Uses a configurable shared Wine prefix (default: `umu-default`).
 * Logs launch commands and game output to `~/.local/share/umu-launch-gum/logs/`.
+* Quick launch mode `--quick` or `-q` which simply loads your last game played.
 
 ## Requirements
 
