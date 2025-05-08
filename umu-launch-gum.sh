@@ -1,9 +1,5 @@
 #!/bin/bash
 
-# Launches portable Windows games on Linux using umu-launcher.
-
-# --- Configuration ---
-# Default values (will be overridden by config file if present)
 DEFAULT_CUSTOM_PROTON_DIRS=(
     "$HOME/.local/share/Steam/compatibilitytools.d"
     "$HOME/.steam/root/compatibilitytools.d"
@@ -16,17 +12,15 @@ DEFAULT_STEAM_LIB_DIRS=(
     "$HOME/.var/app/com.valvesoftware.Steam/data/Steam"
 )
 DEFAULT_STEAM_PROTON_SUBDIR="steamapps/common"
-# DEFAULT_GAMESCOPE_PARAMS removed
+DEFAULT_GAMESCOPE_PARAMS="-f --backend wayland --grab"
 DEFAULT_UNIVERSAL_PREFIX_NAME="umu-default"
 
-# --- Paths ---
 CONFIG_DIR="$HOME/.config/umu-launch-gum"
 CONFIG_FILE="$CONFIG_DIR/config.conf"
 DATA_DIR="$HOME/.local/share/umu-launch-gum"
 LOG_DIR="$DATA_DIR/logs"
 LAST_GAME_FILE="$DATA_DIR/last_game.path"
 
-# --- TUI Styling (using gum) ---
 INFO_STYLE="--foreground 99"
 SUCCESS_STYLE="--foreground 40"
 WARNING_STYLE="--foreground 214"
@@ -40,14 +34,12 @@ DEPENDENCY_LABEL_STYLE="--width 15 --foreground 240"
 DEPENDENCY_FOUND_STYLE="--foreground 40 --bold"
 DEPENDENCY_MISSING_STYLE="--foreground 196"
 
-# --- Script Variables (Initialize with defaults) ---
 CUSTOM_PROTON_DIRS=("${DEFAULT_CUSTOM_PROTON_DIRS[@]}")
 STEAM_LIB_DIRS=("${DEFAULT_STEAM_LIB_DIRS[@]}")
 STEAM_PROTON_SUBDIR="$DEFAULT_STEAM_PROTON_SUBDIR"
-# GAMESCOPE_PARAMS removed
+GAMESCOPE_PARAMS="$DEFAULT_GAMESCOPE_PARAMS"
 UNIVERSAL_PREFIX_NAME="$DEFAULT_UNIVERSAL_PREFIX_NAME"
 
-# --- Global Variables ---
 declare -a PROTON_VERSIONS
 declare -a PROTON_PATHS
 declare -a SELECTED_OPTIONS
@@ -56,10 +48,9 @@ GAME_EXECUTABLE=""
 GAME_DIR=""
 GAME_BASENAME=""
 CUSTOM_INPUT=""
-GAMESCOPE_FLAGS_TO_USE="" # Store the final gamescope flags (can be empty)
+GAMESCOPE_FLAGS_TO_USE=""
 GAMESCOPE_SELECTED=0
 
-# --- Helper Functions ---
 gum_log() {
     local style_flags="$1" message="$2"
     echo "$message" | gum style $style_flags
@@ -75,7 +66,6 @@ setup_data_dirs() {
     mkdir -p "$LOG_DIR" || error_exit "Failed to create data/log directory: $LOG_DIR"
 }
 
-# --- Configuration Loading ---
 load_config() {
     if [[ ! -f "$CONFIG_FILE" ]]; then
         gum_log "$INFO_STYLE" "Config file not found ($CONFIG_FILE), using script defaults."
@@ -95,7 +85,7 @@ load_config() {
             CUSTOM_PROTON_DIRS) read -r -a CUSTOM_PROTON_DIRS <<< "$var_value" ;;
             STEAM_LIB_DIRS) read -r -a STEAM_LIB_DIRS <<< "$var_value" ;;
             STEAM_PROTON_SUBDIR) STEAM_PROTON_SUBDIR="$var_value" ;;
-            # DEFAULT_GAMESCOPE_PARAMS removed from config loading
+            DEFAULT_GAMESCOPE_PARAMS) GAMESCOPE_PARAMS="$var_value" ;;
             UNIVERSAL_PREFIX_NAME) UNIVERSAL_PREFIX_NAME="$var_value" ;;
             *) gum_log "$WARNING_STYLE" "Ignoring unknown variable in config file: $var_name" ;;
         esac
@@ -103,7 +93,6 @@ load_config() {
 }
 
 
-# --- Dependency Checks ---
 check_dependencies() {
     gum_log "$INFO_STYLE" "Checking dependencies..."
     local missing_dep=0
@@ -137,7 +126,6 @@ check_dependencies() {
     printf "%s\n" "${dep_lines[@]}"
 }
 
-# --- Proton Detection ---
 detect_proton_versions() {
     gum spin --spinner line --title "Searching for Proton versions..." -- sleep 0.2
     PROTON_VERSIONS=(); PROTON_PATHS=();
@@ -182,7 +170,6 @@ detect_proton_versions() {
     gum_log "$SUCCESS_STYLE" "Found ${#PROTON_VERSIONS[@]} Proton versions."
 }
 
-# --- Game Selection ---
 select_game_executable() {
     gum_log "$INFO_STYLE" "Please select the game's primary executable (.exe):"
     local selected_path; selected_path=$(gum file "$HOME")
@@ -194,7 +181,6 @@ select_game_executable() {
     gum_log "$INFO_STYLE" "Game Directory: $GAME_DIR"
 }
 
-# --- Quick Launch ---
 quick_launch_load_last_game() {
     if [[ ! -f "$LAST_GAME_FILE" ]]; then
         gum_log "$WARNING_STYLE" "Quick launch failed: Last game file not found."
@@ -215,7 +201,6 @@ quick_launch_load_last_game() {
     return 0
 }
 
-# --- Proton Selection ---
 select_proton_version() {
     [ ${#PROTON_VERSIONS[@]} -eq 0 ] && error_exit "No Proton versions found."
     local header_text="Select Proton Version:"
@@ -232,7 +217,6 @@ select_proton_version() {
     gum_log "$SUCCESS_STYLE" "Selected Proton: $SELECTED_PROTON_NAME"
 }
 
-# --- Launch Options Selection ---
 select_launch_options() {
     local top_options=() other_options=() final_options_list=()
     local -A option_map=(
@@ -287,7 +271,6 @@ select_launch_options() {
     fi
 }
 
-# --- Synchronization Method Selection ---
 select_sync_method() {
     local sync_methods=(
         "Fsync (Needs kernel support, e.g., Zen/Liquorix)"
@@ -313,31 +296,33 @@ select_sync_method() {
     gum_log "$SUCCESS_STYLE" "Selected Sync Method: ${SELECTED_SYNC_METHOD%% *}"
 }
 
-# --- Get Gamescope Flags (if enabled) ---
 get_gamescope_flags() {
+    local default_flags="$1"
     local custom_flags=""
-    GAMESCOPE_FLAGS_TO_USE="" # Reset flags
+    local use_defaults=0
 
-    # Ask if user wants to add flags
-    if gum confirm "Add custom flags to Gamescope?" --affirmative "Add Flags" --negative "Run Plain"; then
+    if gum confirm "Use default Gamescope flags ($default_flags)?" --affirmative "Use Defaults" --negative "Enter Custom"; then
+        use_defaults=1
+    fi
+
+    if [[ $use_defaults -eq 1 ]]; then
+        GAMESCOPE_FLAGS_TO_USE="$default_flags"
+        gum_log "$INFO_STYLE" "Using default Gamescope flags."
+    else
         gum_log "$INFO_STYLE" "Enter custom Gamescope flags:"
         custom_flags=$(gum input --placeholder="-W 1920 -H 1080 -r 60 etc.")
-        custom_flags=$(echo "$custom_flags" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//') # Trim whitespace
+        custom_flags=$(echo "$custom_flags" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
         if [ -n "$custom_flags" ]; then
             GAMESCOPE_FLAGS_TO_USE="$custom_flags"
             gum_log "$SUCCESS_STYLE" "Using custom Gamescope flags: $GAMESCOPE_FLAGS_TO_USE"
         else
-            gum_log "$WARNING_STYLE" "No custom flags entered, running Gamescope without flags."
-            # GAMESCOPE_FLAGS_TO_USE remains empty
+            gum_log "$WARNING_STYLE" "No custom flags entered, using defaults."
+            GAMESCOPE_FLAGS_TO_USE="$default_flags"
         fi
-    else
-        gum_log "$INFO_STYLE" "Running Gamescope without additional flags."
-        # GAMESCOPE_FLAGS_TO_USE remains empty
     fi
 }
 
 
-# --- Get Custom Input (for env vars/args) ---
 get_custom_input() {
     gum_log "$INFO_STYLE" "Enter any additional env vars (VAR=val) or arguments (-arg):"
     CUSTOM_INPUT=$(gum input --placeholder="e.g., DXVK_HUD=1 -someflag" --prompt.foreground="$HEADER_FG_COLOR")
@@ -347,7 +332,6 @@ get_custom_input() {
     fi
 }
 
-# --- Configure Environment Variables and Command ---
 configure_environment_and_command() {
     local gamescope_prefix=() gamemode_prefix=() custom_args=()
     declare -A LAUNCH_ENV
@@ -359,7 +343,7 @@ configure_environment_and_command() {
 
     for opt in "${SELECTED_OPTIONS[@]}"; do
         case "$opt" in
-            "Enable Gamescope"*) ;; # Handled later based on GAMESCOPE_SELECTED
+            "Enable Gamescope"*) ;;
             "Enable MangoHud"*) if [ "$mangohud_available" -eq 1 ]; then LAUNCH_ENV["MANGOHUD"]="1"; mangohud_enabled=1; else gum_log "$WARNING_STYLE" "MangoHud NA."; fi ;;
             "Enable GameMode"*) if [ "$gamemode_available" -eq 1 ]; then gamemode_prefix=("gamemoderun"); gamemode_enabled=1; else gum_log "$WARNING_STYLE" "GameMode NA."; fi ;;
             "Enable NVAPI"*) LAUNCH_ENV["PROTON_ENABLE_NVAPI"]="1"; LAUNCH_ENV["DXVK_ENABLE_NVAPI"]="1"; nvapi_enabled=1 ;;
@@ -369,16 +353,13 @@ configure_environment_and_command() {
         esac
     done
 
-    # Build Gamescope prefix based on whether flags were added
-    if [[ "$GAMESCOPE_SELECTED" -eq 1 ]]; then
-        gamescope_enabled=1 # Mark as enabled for summary
-        if [[ -n "$GAMESCOPE_FLAGS_TO_USE" ]]; then
-            read -r -a gs_flags <<< "$GAMESCOPE_FLAGS_TO_USE"
-            gamescope_prefix=("gamescope" "${gs_flags[@]}" "--")
-        else
-            # Run plain gamescope if no flags were added
-            gamescope_prefix=("gamescope" "--")
-        fi
+    if [[ "$GAMESCOPE_SELECTED" -eq 1 && -n "$GAMESCOPE_FLAGS_TO_USE" ]]; then
+        read -r -a gs_flags <<< "$GAMESCOPE_FLAGS_TO_USE"
+        gamescope_prefix=("gamescope" "${gs_flags[@]}" "--")
+        gamescope_enabled=1
+    elif [[ "$GAMESCOPE_SELECTED" -eq 1 ]]; then
+        gum_log "$WARNING_STYLE" "Gamescope selected but flags missing, disabling."
+        gamescope_enabled=0
     fi
 
     local sync_method_name="None"
@@ -416,7 +397,6 @@ configure_environment_and_command() {
     _SUMMARY_SYNC_METHOD_NAME=$sync_method_name
 }
 
-# --- Display Summary and Launch ---
 display_summary_and_launch() {
     local summary_lines=()
     summary_lines+=("$(echo "Launch Configuration Summary" | gum style --foreground "$HEADER_FG_COLOR" --bold --align center)")
@@ -437,16 +417,7 @@ display_summary_and_launch() {
     summary_lines+=(" ")
     summary_lines+=("$(echo "--- Options ---" | gum style --foreground 240)")
     add_summary_line "GameMode" "$([ "$_SUMMARY_GAMEMODE_ENABLED" -eq 1 ] && echo "Enabled" || echo "Disabled")"
-    # Modify Gamescope summary line
-    if [[ "$_SUMMARY_GAMESCOPE_ENABLED" -eq 1 ]]; then
-        if [[ -n "$GAMESCOPE_FLAGS_TO_USE" ]]; then
-            add_summary_line "Gamescope" "Enabled ($GAMESCOPE_FLAGS_TO_USE)"
-        else
-            add_summary_line "Gamescope" "Enabled (No Flags)"
-        fi
-    else
-        add_summary_line "Gamescope" "Disabled"
-    fi
+    add_summary_line "Gamescope" "$([ "$_SUMMARY_GAMESCOPE_ENABLED" -eq 1 ] && echo "Enabled ($GAMESCOPE_FLAGS_TO_USE)" || echo "Disabled")"
     add_summary_line "MangoHud" "$([ "$_SUMMARY_MANGOHUD_ENABLED" -eq 1 ] && echo "Enabled" || echo "Disabled")"
     add_summary_line "NVAPI" "$([ "$_SUMMARY_NVAPI_ENABLED" -eq 1 ] && echo "Enabled" || echo "Disabled")"
     add_summary_line "DXVK Async" "$([ "$_SUMMARY_DXVK_ASYNC_ENABLED" -eq 1 ] && echo "Enabled" || echo "Disabled")"
@@ -491,7 +462,6 @@ display_summary_and_launch() {
     fi
 }
 
-# --- Main Script Logic ---
 main() {
     local quick_launch=0
     if [[ "$1" == "--quick" || "$1" == "-q" ]]; then
@@ -502,7 +472,7 @@ main() {
     CUSTOM_PROTON_DIRS=("${DEFAULT_CUSTOM_PROTON_DIRS[@]}")
     STEAM_LIB_DIRS=("${DEFAULT_STEAM_LIB_DIRS[@]}")
     STEAM_PROTON_SUBDIR="$DEFAULT_STEAM_PROTON_SUBDIR"
-    # GAMESCOPE_PARAMS removed from initialization here, defaults are handled in get_gamescope_flags
+    GAMESCOPE_PARAMS="$DEFAULT_GAMESCOPE_PARAMS"
     UNIVERSAL_PREFIX_NAME="$DEFAULT_UNIVERSAL_PREFIX_NAME"
 
     load_config
@@ -517,10 +487,9 @@ main() {
     detect_proton_versions
     select_proton_version
     select_launch_options
-    # Check if Gamescope was selected and prompt for flags if needed
-    GAMESCOPE_FLAGS_TO_USE="" # Ensure it's reset before the check
+    GAMESCOPE_FLAGS_TO_USE=""
     if [[ "$GAMESCOPE_SELECTED" -eq 1 ]]; then
-        get_gamescope_flags # Pass no default flags argument
+        get_gamescope_flags "$GAMESCOPE_PARAMS"
     fi
     select_sync_method
     get_custom_input
@@ -528,6 +497,5 @@ main() {
     display_summary_and_launch
 }
 
-# --- Script Execution ---
 main "$@"
 exit 0
