@@ -477,10 +477,11 @@ main() {
 
     load_config
     setup_data_dirs
+    check_dependencies # Moved here to run always
 
     if [[ "$quick_launch" -eq 0 ]] || ! quick_launch_load_last_game; then
        echo "UMU Game Launcher" | gum style --border double --padding '1 2' --border-foreground "$HEADER_BORDER_COLOR" --align center
-       check_dependencies
+       # check_dependencies moved up
        select_game_executable
     fi
 
