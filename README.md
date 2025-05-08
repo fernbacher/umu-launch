@@ -1,6 +1,6 @@
 # UMU-Launch-Gum: TUI Launcher for Windows Games on Linux
 
-A script providing a Terminal User Interface (TUI) using `gum` to launch Windows games on Linux via `umu-launcher` and Proton/Wine-GE.
+A script providing a Terminal User Interface (TUI) using `gum` to launch Windows games on Linux via `umu-launcher`.
 
 ![Preview](preview.gif)
 
