@@ -7,7 +7,7 @@ A script providing a Terminal User Interface (TUI) using `gum` to launch Windows
 ## Features
 
 * Select game `.exe` files using a file browser for new game setups.
-* Game library: Save game configurations (Proton version, environment variables, launch options, etc.) for easy one-click launching.
+* Game library: Save game configurations (Proton version, environment variables, launch options, etc.) for easy launching.
 * Detects and allows selection of Proton/Wine-GE versions (Steam official & custom).
 * Set environment variables (e.g., `DXVK_HUD=1`) or command-line arguments per launch, saved with library entries.
 * Integrates with Gamescope, Gamemode, and MangoHud if installed (optional).
@@ -50,6 +50,8 @@ A script providing a Terminal User Interface (TUI) using `gum` to launch Windows
     * **Quick Launch**: Launch the last game you played from the library using its saved settings.
     * **Exit**: Close the launcher.
 4.  Follow the TUI prompts to select the game, Proton version, and options.
+
+5.  Optionally create an alias for the tool in your shell configuration file.
 
 ## Configuration (Optional)
 
