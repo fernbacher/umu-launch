@@ -312,60 +312,99 @@ get_universal_prefix_name_for_game() {
 }
 
 configure_environment_and_command() {
-    local gamescope_prefix=() gamemode_prefix=() custom_args=()
     declare -A LAUNCH_ENV
     LAUNCH_ENV["PROTONPATH"]="$SELECTED_PROTON_PATH"
-    LAUNCH_ENV["GAMEID"]="$UNIVERSAL_PREFIX_NAME"
+    LAUNCH_ENV["GAMEID"]="$UNIVERSAL_PREFIX_NAME" 
 
-    local gs_enabled=0 gm_enabled=0 mh_enabled=0 nv_enabled=0 dx_async_enabled=0 vk_rt_enabled=0 vk_validate_enabled=0
-
+    local use_mangohud=0
+    local use_nvapi=0
+    local use_dxvk_async=0
+    local use_vkd3d_rt=0
+    local use_vk_validate=0
+    local use_gamemode=0
+    
     for opt in "${SELECTED_OPTIONS[@]}"; do
         case "$opt" in
-            *"Gamescope"*) ;; 
-            *"MangoHud"*) [[ "$mangohud_available" -eq 1 ]] && { LAUNCH_ENV["MANGOHUD"]="1"; mh_enabled=1; };;
-            *"GameMode"*) [[ "$gamemode_available" -eq 1 ]] && { gamemode_prefix=("gamemoderun"); gm_enabled=1; };;
-            *"NVAPI"*) LAUNCH_ENV["PROTON_ENABLE_NVAPI"]="1"; LAUNCH_ENV["DXVK_ENABLE_NVAPI"]="1"; nv_enabled=1;;
-            *"DXVK Async"*) LAUNCH_ENV["DXVK_ASYNC"]="1"; dx_async_enabled=1;;
-            *"VKD3D RT"*) LAUNCH_ENV["VKD3D_CONFIG"]="dxr11,dxr"; vk_rt_enabled=1;;
-            *"Vulkan Validation"*) LAUNCH_ENV["VK_INSTANCE_LAYERS"]="VK_LAYER_KHRONOS_validation"; vk_validate_enabled=1;;
+            *"MangoHud"*) [[ "$mangohud_available" -eq 1 ]] && { LAUNCH_ENV["MANGOHUD"]="1"; use_mangohud=1; };;
+            *"NVAPI"*) LAUNCH_ENV["PROTON_ENABLE_NVAPI"]="1"; LAUNCH_ENV["DXVK_ENABLE_NVAPI"]="1"; use_nvapi=1;;
+            *"DXVK Async"*) LAUNCH_ENV["DXVK_ASYNC"]="1"; use_dxvk_async=1;;
+            *"VKD3D RT"*) LAUNCH_ENV["VKD3D_CONFIG"]="dxr11,dxr"; use_vkd3d_rt=1;;
+            *"Vulkan Validation"*) LAUNCH_ENV["VK_INSTANCE_LAYERS"]="VK_LAYER_KHRONOS_validation"; use_vk_validate=1;;
+            *"GameMode"*) [[ "$gamemode_available" -eq 1 ]] && use_gamemode=1;;
         esac
     done
 
-    if [[ "$GAMESCOPE_SELECTED" -eq 1 && -n "$GAMESCOPE_FLAGS_TO_USE" ]]; then
-        read -r -a gs_flags <<< "$GAMESCOPE_FLAGS_TO_USE"
-        gamescope_prefix=("gamescope" "${gs_flags[@]}" "--")
-        gs_enabled=1
-    fi
-
-    local sync_method_name="None"
+    local sync_method_name_for_summary="None"
     case "$SELECTED_SYNC_METHOD" in
-        "Fsync"*) LAUNCH_ENV["WINEFSYNC"]="1"; sync_method_name="Fsync";;
-        "Esync"*) LAUNCH_ENV["WINEESYNC"]="1"; sync_method_name="Esync";;
-        "Ntsync"*) LAUNCH_ENV["PROTON_USE_NTSYNC"]="1"; sync_method_name="Ntsync";;
+        "Fsync"*) LAUNCH_ENV["WINEFSYNC"]="1"; sync_method_name_for_summary="Fsync";;
+        "Esync"*) LAUNCH_ENV["WINEESYNC"]="1"; sync_method_name_for_summary="Esync";;
+        "Ntsync"*) LAUNCH_ENV["PROTON_USE_NTSYNC"]="1"; sync_method_name_for_summary="Ntsync";;
     esac
 
+    local custom_args_for_umu=() 
     if [[ -n "$CUSTOM_INPUT" ]]; then
         read -r -a custom_tokens <<< "$CUSTOM_INPUT"
         for token in "${custom_tokens[@]}"; do
-            if [[ "$token" == *"="* ]]; then LAUNCH_ENV["${token%%=*}"]="${token#*=}";
-            else custom_args+=("$token"); fi
+            if [[ "$token" == *"="* ]]; then
+                LAUNCH_ENV["${token%%=*}"]="${token#*=}"
+            else
+                custom_args_for_umu+=("$token")
+            fi
         done
     fi
 
-    local core_command=("env")
-    for key in "${!LAUNCH_ENV[@]}"; do core_command+=("${key}=${LAUNCH_ENV[$key]}"); done
-    core_command+=("umu-run" "$GAME_BASENAME" "${custom_args[@]}")
+    local env_prefix_array=()
+    if (( ${#LAUNCH_ENV[@]} > 0 )); then 
+        env_prefix_array+=("env")
+        local sorted_env_keys
+        IFS=$'\n' sorted_env_keys=($(printf "%s\n" "${!LAUNCH_ENV[@]}" | sort))
+        unset IFS
+        for key in "${sorted_env_keys[@]}"; do
+            env_prefix_array+=("${key}=${LAUNCH_ENV[$key]}")
+        done
+    fi
 
-    FINAL_COMMAND=()
-    [[ ${#gamemode_prefix[@]} -gt 0 ]] && FINAL_COMMAND+=("${gamemode_prefix[@]}")
-    [[ ${#gamescope_prefix[@]} -gt 0 ]] && FINAL_COMMAND+=("${gamescope_prefix[@]}")
-    FINAL_COMMAND+=("${core_command[@]}")
+    local base_command_array=("umu-run" "$GAME_BASENAME")
+    [[ ${#custom_args_for_umu[@]} -gt 0 ]] && base_command_array+=("${custom_args_for_umu[@]}")
 
-    _SUMMARY_GAMESCOPE_ENABLED=$gs_enabled; _SUMMARY_GAMEMODE_ENABLED=$gm_enabled
-    _SUMMARY_MANGOHUD_ENABLED=$mh_enabled; _SUMMARY_NVAPI_ENABLED=$nv_enabled
-    _SUMMARY_DXVK_ASYNC_ENABLED=$dx_async_enabled; _SUMMARY_VKD3D_RT_ENABLED=$vk_rt_enabled
-    _SUMMARY_VK_VALIDATE_ENABLED=$vk_validate_enabled; _SUMMARY_SYNC_METHOD_NAME=$sync_method_name
+    local command_being_wrapped=("${base_command_array[@]}")
+    local actual_gamescope_enabled=0
+    if [[ "$GAMESCOPE_SELECTED" -eq 1 && "$gamescope_available" -eq 1 ]]; then
+        if [[ -n "$GAMESCOPE_FLAGS_TO_USE" ]]; then
+            read -r -a gs_flags <<< "$GAMESCOPE_FLAGS_TO_USE"
+            command_being_wrapped=("gamescope" "${gs_flags[@]}" "--" "${command_being_wrapped[@]}")
+            actual_gamescope_enabled=1
+        else
+            gum_log WARNING_STYLE_ARGS "Gamescope selected but no flags provided; not using Gamescope."
+        fi
+    elif [[ "$GAMESCOPE_SELECTED" -eq 1 && "$gamescope_available" -ne 1 ]]; then
+        gum_log WARNING_STYLE_ARGS "Gamescope selected but not available."
+    fi
+
+    local actual_gamemode_enabled=0
+    if [[ "$use_gamemode" -eq 1 ]]; then
+        command_being_wrapped=("gamemoderun" "${command_being_wrapped[@]}")
+        actual_gamemode_enabled=1
+    elif [[ "$use_gamemode" -eq 1 && "$gamemode_available" -ne 1 ]]; then # Should have been caught by option_availability
+         gum_log WARNING_STYLE_ARGS "GameMode selected but not available (should not happen here)."
+    fi
+    
+    if [[ ${#env_prefix_array[@]} -gt 0 ]]; then
+        FINAL_COMMAND=("${env_prefix_array[@]}" "${command_being_wrapped[@]}")
+    else
+        FINAL_COMMAND=("${command_being_wrapped[@]}")
+    fi
+
+    _SUMMARY_GAMESCOPE_ENABLED=$actual_gamescope_enabled
+    _SUMMARY_GAMEMODE_ENABLED=$actual_gamemode_enabled
+    _SUMMARY_MANGOHUD_ENABLED=$use_mangohud
+    _SUMMARY_NVAPI_ENABLED=$use_nvapi
+    _SUMMARY_DXVK_ASYNC_ENABLED=$use_dxvk_async
+    _SUMMARY_VKD3D_RT_ENABLED=$use_vkd3d_rt
+    _SUMMARY_VK_VALIDATE_ENABLED=$use_vk_validate
+    _SUMMARY_SYNC_METHOD_NAME=$sync_method_name_for_summary
 }
+
 
 execute_game_directly() {
     if [[ "$IS_QUICK_LAUNCHING" -eq 1 ]]; then
@@ -552,7 +591,6 @@ manage_library_game() {
     local game_display_name
     game_display_name=$(jq -r '.display_name' "$game_json_file" 2>/dev/null || basename "${game_json_file%.json}")
     game_display_name=$(echo "$game_display_name" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-
 
     while true; do
         clear 
