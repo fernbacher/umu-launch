@@ -22,17 +22,37 @@ LOG_DIR="$DATA_DIR/logs"
 LIBRARY_DIR="$DATA_DIR/library"
 LAST_GAME_FILE="$DATA_DIR/last_game_config.jsonpath"
 
-INFO_STYLE_ARGS=("--foreground" "99")
-SUCCESS_STYLE_ARGS=("--foreground" "40")
-WARNING_STYLE_ARGS=("--foreground" "214")
-ERROR_STYLE_ARGS=("--foreground" "196" "--bold")
-HEADER_FG_COLOR="28" 
-SELECTED_FG_COLOR="205"
-CURSOR_FG_COLOR="28" 
+DEFAULT_HEADER_FG_COLOR="28"
+DEFAULT_SELECTED_FG_COLOR="205"
+DEFAULT_CURSOR_FG_COLOR="28"
+DEFAULT_INFO_FG="99"
+DEFAULT_SUCCESS_FG="40"
+DEFAULT_WARNING_FG="214"
+DEFAULT_ERROR_FG="196"
+DEFAULT_DEP_LABEL_FG="240"
+DEFAULT_DEP_FOUND_FG="40"
+DEFAULT_DEP_MISSING_FG="196"
+
+HEADER_FG_COLOR="$DEFAULT_HEADER_FG_COLOR"
+SELECTED_FG_COLOR="$DEFAULT_SELECTED_FG_COLOR"
+CURSOR_FG_COLOR="$DEFAULT_CURSOR_FG_COLOR"
+INFO_FG="$DEFAULT_INFO_FG"
+SUCCESS_FG="$DEFAULT_SUCCESS_FG"
+WARNING_FG="$DEFAULT_WARNING_FG"
+ERROR_FG="$DEFAULT_ERROR_FG"
+DEP_LABEL_FG="$DEFAULT_DEP_LABEL_FG"
+DEP_FOUND_FG="$DEFAULT_DEP_FOUND_FG"
+DEP_MISSING_FG="$DEFAULT_DEP_MISSING_FG"
+
+INFO_STYLE_ARGS=("--foreground" "$INFO_FG")
+SUCCESS_STYLE_ARGS=("--foreground" "$SUCCESS_FG")
+WARNING_STYLE_ARGS=("--foreground" "$WARNING_FG")
+ERROR_STYLE_ARGS=("--foreground" "$ERROR_FG" "--bold")
+DEPENDENCY_LABEL_STYLE_ARGS=("--width" "15" "--foreground" "$DEP_LABEL_FG")
+DEPENDENCY_FOUND_STYLE_ARGS=("--foreground" "$DEP_FOUND_FG" "--bold")
+DEPENDENCY_MISSING_STYLE_ARGS=("--foreground" "$DEP_MISSING_FG")
+
 ITEM_PADDING="0 1"
-DEPENDENCY_LABEL_STYLE_ARGS=("--width" "15" "--foreground" "240")
-DEPENDENCY_FOUND_STYLE_ARGS=("--foreground" "40" "--bold")
-DEPENDENCY_MISSING_STYLE_ARGS=("--foreground" "196")
 
 CUSTOM_PROTON_DIRS=("${DEFAULT_CUSTOM_PROTON_DIRS[@]}")
 STEAM_LIB_DIRS=("${DEFAULT_STEAM_LIB_DIRS[@]}")
@@ -67,8 +87,29 @@ setup_data_dirs() {
     mkdir -p "$LIBRARY_DIR" || error_exit "Failed to create library directory: $LIBRARY_DIR"
 }
 
+update_style_args() {
+    INFO_STYLE_ARGS=("--foreground" "$INFO_FG")
+    SUCCESS_STYLE_ARGS=("--foreground" "$SUCCESS_FG")
+    WARNING_STYLE_ARGS=("--foreground" "$WARNING_FG")
+    ERROR_STYLE_ARGS=("--foreground" "$ERROR_FG" "--bold")
+    DEPENDENCY_LABEL_STYLE_ARGS=("--width" "15" "--foreground" "$DEP_LABEL_FG")
+    DEPENDENCY_FOUND_STYLE_ARGS=("--foreground" "$DEP_FOUND_FG" "--bold")
+    DEPENDENCY_MISSING_STYLE_ARGS=("--foreground" "$DEP_MISSING_FG")
+}
+
 load_config() {
-    [[ ! -f "$CONFIG_FILE" ]] && return
+    HEADER_FG_COLOR="$DEFAULT_HEADER_FG_COLOR"
+    SELECTED_FG_COLOR="$DEFAULT_SELECTED_FG_COLOR"
+    CURSOR_FG_COLOR="$DEFAULT_CURSOR_FG_COLOR"
+    INFO_FG="$DEFAULT_INFO_FG"
+    SUCCESS_FG="$DEFAULT_SUCCESS_FG"
+    WARNING_FG="$DEFAULT_WARNING_FG"
+    ERROR_FG="$DEFAULT_ERROR_FG"
+    DEP_LABEL_FG="$DEFAULT_DEP_LABEL_FG"
+    DEP_FOUND_FG="$DEFAULT_DEP_FOUND_FG"
+    DEP_MISSING_FG="$DEFAULT_DEP_MISSING_FG"
+    
+    [[ ! -f "$CONFIG_FILE" ]] && { update_style_args; return; }
     gum_log INFO_STYLE_ARGS "Loading config: $CONFIG_FILE"
     local var_name var_value
     while IFS='=' read -r var_name var_value || [[ -n "$var_name" ]]; do
@@ -83,8 +124,20 @@ load_config() {
             STEAM_PROTON_SUBDIR) STEAM_PROTON_SUBDIR="$var_value" ;;
             DEFAULT_GAMESCOPE_PARAMS) GAMESCOPE_PARAMS="$var_value" ;;
             UNIVERSAL_PREFIX_NAME) UNIVERSAL_PREFIX_NAME="$var_value" ;;
+            
+            HEADER_FG_COLOR) HEADER_FG_COLOR="$var_value" ;;
+            SELECTED_FG_COLOR) SELECTED_FG_COLOR="$var_value" ;;
+            CURSOR_FG_COLOR) CURSOR_FG_COLOR="$var_value" ;;
+            INFO_FG) INFO_FG="$var_value" ;;
+            SUCCESS_FG) SUCCESS_FG="$var_value" ;;
+            WARNING_FG) WARNING_FG="$var_value" ;;
+            ERROR_FG) ERROR_FG="$var_value" ;;
+            DEP_LABEL_FG) DEP_LABEL_FG="$var_value" ;;
+            DEP_FOUND_FG) DEP_FOUND_FG="$var_value" ;;
+            DEP_MISSING_FG) DEP_MISSING_FG="$var_value" ;;
         esac
     done < "$CONFIG_FILE"
+    update_style_args
 }
 
 check_dependencies() {
@@ -563,7 +616,7 @@ list_library_games_for_chooser() {
 
 run_new_game_flow() {
     IS_QUICK_LAUNCHING=0
-    echo "New Game Setup" | gum style --bold --padding "0 1" --border "normal" --align center
+    echo "New Game Setup" | gum style --bold --padding "0 1" --border "normal" --align center --border-foreground "$HEADER_FG_COLOR"
     select_game_executable
     detect_proton_versions
     select_proton_version "" 
@@ -591,7 +644,7 @@ manage_library_game() {
     while true; do
         clear 
         echo "Game: $game_display_name" | gum style --bold --foreground "$HEADER_FG_COLOR" --margin "1 0 0 0"
-        gum_log INFO_STYLE_ARGS " (L)aunch (M)odify (V)iew (R)emove (B)ack to Library"
+        gum_log INFO_STYLE_ARGS " (L)aunch (E)dit (V)iew (D)elete (B)ack"
         local action_char
         action_char=$(gum input --prompt " > " --char-limit 1)
         
@@ -603,10 +656,9 @@ manage_library_game() {
                     display_summary_and_launch
                 fi
                 ;;
-            m|M)
+            e|E)
                 if load_game_from_library "$game_json_file"; then
-                    echo "$game_json_file" > "$LAST_GAME_FILE" || gum_log WARNING_STYLE_ARGS "Could not update last game config path for modification."
-                    echo "Modifying: $game_display_name" | gum style --bold
+                    echo "Editing: $game_display_name" | gum style --bold
                     detect_proton_versions 
                     select_proton_version "$SELECTED_PROTON_NAME"
                     select_launch_options "$(IFS=,; echo "${SELECTED_OPTIONS[*]}")" 
@@ -620,11 +672,11 @@ manage_library_game() {
                     get_custom_input "$CUSTOM_INPUT"
                     get_universal_prefix_name_for_game "$UNIVERSAL_PREFIX_NAME"
 
-                    if gum confirm "Update library entry with these changes?"; then
+                    if gum confirm "Save changes to library entry?"; then
                         save_game_to_library "$game_json_file" "$game_display_name" 
+                    else
+                        gum_log INFO_STYLE_ARGS "Changes not saved."
                     fi
-                    configure_environment_and_command
-                    display_summary_and_launch
                 fi
                 ;;
             v|V)
@@ -649,7 +701,7 @@ manage_library_game() {
                     gum input --placeholder "Press Enter to continue..." > /dev/null 
                 fi
                 ;;
-            r|R)
+            d|D)
                 if gum confirm "Are you sure you want to remove '$game_display_name' from the library?"; then
                     if rm "$game_json_file"; then
                         gum_log SUCCESS_STYLE_ARGS "'$game_display_name' removed from library."
@@ -666,7 +718,7 @@ manage_library_game() {
                 return 
                 ;;
             *)
-                gum_log WARNING_STYLE_ARGS "Invalid action. Please use L, M, V, R, or B."
+                gum_log WARNING_STYLE_ARGS "Invalid action. Please use L, E, V, D, or B."
                 sleep 1.5 
                 ;;
         esac
@@ -687,63 +739,20 @@ open_game_library_flow() {
             if gum confirm "Return to Main Menu?"; then return; else continue; fi
         fi
 
-        local all_lines_from_list_output=()
-        mapfile -t all_lines_from_list_output < <(echo "$list_output")
-
         local game_display_names_array=()
-        local game_file_paths_array=()
-        local separator_found=0
-        local parsing_paths=0 
-
-        for line in "${all_lines_from_list_output[@]}"; do
-            if [[ "$line" == "---SEPARATOR_FOR_PATHS---" ]]; then
-                parsing_paths=1
-                separator_found=1 
-                continue 
-            fi
-
-            if [[ $parsing_paths -eq 0 ]]; then
-                game_display_names_array+=("$(echo "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')")
-            else
-                game_file_paths_array+=("$line") 
-            fi
-        done
+        mapfile -t game_display_names_array < <(echo "$list_output" | sed -n '/---SEPARATOR_FOR_PATHS---/q;p')
         
-        if [[ $separator_found -eq 0 && ${#all_lines_from_list_output[@]} -gt 0 && "$list_output" != "__EMPTY__" ]]; then
-            gum_log ERROR_STYLE_ARGS "Library data is malformed (separator missing)."
-            if gum confirm "Return to Main Menu?"; then return; else continue; fi
-        fi
-
-        if [[ ${#game_display_names_array[@]} -eq 0 && "$list_output" != "__EMPTY__" ]]; then 
-             gum_log INFO_STYLE_ARGS "No games found in library to display (after parsing)."
-             if gum confirm "Return to Main Menu?"; then return; else continue; fi
-        fi
-        
-        if [[ $separator_found -eq 1 && ${#game_display_names_array[@]} -ne ${#game_file_paths_array[@]} ]]; then
-            gum_log ERROR_STYLE_ARGS "Mismatch between game names and paths counts. Library may be corrupt."
-            gum_log INFO_STYLE_ARGS "Name count: ${#game_display_names_array[@]}, Path count: ${#game_file_paths_array[@]}"
-            if gum confirm "Return to Main Menu?"; then return; else continue; fi
-        fi
-
-        local choose_options=()
-        for name in "${game_display_names_array[@]}"; do
-            choose_options+=("$name")
-        done
-        choose_options+=("[Back to Main Menu]")
-
         local chosen_game_display_name
-        chosen_game_display_name=$(printf "%s\n" "${choose_options[@]}" | gum choose \
-            --header "Select Game / Action" \
-            --height 15 \
-            --cursor.foreground "$CURSOR_FG_COLOR" \
-            --selected.foreground "$SELECTED_FG_COLOR") 
+        chosen_game_display_name=$(printf "%s\n" "${game_display_names_array[@]}" | gum filter --header "Search & Select Game (Esc to cancel)" --height 15 --prompt "Filter: " --value "" --match.foreground "$SELECTED_FG_COLOR" --prompt.foreground "$HEADER_FG_COLOR")
+        local gum_filter_exit_code=$?
 
-        local gum_choose_exit_code=$?
-
-        if [[ $gum_choose_exit_code -ne 0 || "$chosen_game_display_name" == "[Back to Main Menu]" || -z "$chosen_game_display_name" ]]; then
+        if [[ $gum_filter_exit_code -ne 0 || -z "$chosen_game_display_name" ]]; then
             return 
         fi
         
+        local game_file_paths_array=()
+        mapfile -t game_file_paths_array < <(echo "$list_output" | sed -n -e '/---SEPARATOR_FOR_PATHS---/,$p' -e '1d')
+
         local chosen_game_display_name_trimmed
         chosen_game_display_name_trimmed=$(echo "$chosen_game_display_name" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
         
@@ -766,7 +775,7 @@ open_game_library_flow() {
                 sleep 3 
             fi
         else
-            gum_log ERROR_STYLE_ARGS "Could not determine file for selected game: '$chosen_game_display_name'. Index: $selected_idx. Path array size: ${#game_file_paths_array[@]}"
+            gum_log ERROR_STYLE_ARGS "Could not determine file for selected game: '$chosen_game_display_name'. Filtered name was '$chosen_game_display_name_trimmed'. Index: $selected_idx. Path array size: ${#game_file_paths_array[@]}"
             sleep 3 
         fi
     done
@@ -781,7 +790,7 @@ show_main_menu() {
         clear
         echo "UMU Launcher" | gum style --bold --padding "0 1" --border "rounded" --align center --border-foreground "$HEADER_FG_COLOR"
         local choice
-        choice=$(gum choose --cursor.foreground "$CURSOR_FG_COLOR" --height 7 \
+        choice=$(gum choose --cursor.foreground "$CURSOR_FG_COLOR" --height 7 --selected.foreground "$SELECTED_FG_COLOR" \
             "New Game" \
             "Game Library" \
             "Quick Launch" \
