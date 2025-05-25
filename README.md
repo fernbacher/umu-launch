@@ -161,6 +161,6 @@ UNIVERSAL_PREFIX_NAME="umu_shared_prefix"
 ```
 Data Files
 
-    * Game Library: Configurations for saved games are stored as JSON files in ~/.local/share/umu-launch-gum/library/.
-    * Last Played Game (for Quick Launch): The path to the last launched game's library configuration is stored in ~/.local/share/umu-launch-gum/last_game_config.jsonpath.
-    * Logs: Launch logs are stored in ~/.local/share/umu-launch-gum/logs/.
+    Game Library: Configurations for saved games are stored as JSON files in ~/.local/share/umu-launch-gum/library/.
+    Last Played Game (for Quick Launch): The path to the last launched game's library configuration is stored in ~/.local/share/umu-launch-gum/last_game_config.jsonpath.
+    Logs: Launch logs are stored in ~/.local/share/umu-launch-gum/logs/.
