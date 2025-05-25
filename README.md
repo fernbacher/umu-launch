@@ -1,19 +1,24 @@
 # UMU-Launch-Gum: TUI Launcher for Windows Games on Linux
 
-A script providing a Terminal User Interface (TUI) using `gum` to launch Windows games on Linux via `umu-launcher`, now with a game library.
+A script providing a Terminal User Interface (TUI) using `gum` to launch Windows games on Linux via `umu-launcher`.
 
 ![Preview](preview.gif)
 
 ## Features
 
 * Select game `.exe` files using a file browser for new game setups.
-* Game library: Save game configurations (Proton version, environment variables, launch options, etc.) for easy launching.
+* **Enhanced Game Library:**
+    * Save game configurations (Proton version, environment variables, launch options, etc.) for easy launching.
+    * **Search and filter** your game library for quick access.
+    * Dedicated **"Edit Configuration"** option to modify saved games without launching.
+    * Manage library entries (Launch, Edit, View Details, Delete).
 * Detects and allows selection of Proton/Wine-GE versions (Steam official & custom).
 * Set environment variables (e.g., `DXVK_HUD=1`) or command-line arguments per launch, saved with library entries.
 * Integrates with Gamescope, Gamemode, and MangoHud if installed (optional).
 * Uses a configurable shared Wine prefix (default: `umu-default`), which can be overridden per game in the library.
+* Customizable TUI Colors: Personalize the look of the launcher via the configuration file.
 * Logs launch commands and game output to `~/.local/share/umu-launch-gum/logs/`.
-* Quick launch mode (`--quick` or `-q`): Launches the last game played from the library with its exact saved configuration.
+* **Quick launch mode** (`--quick` or `-q`): Launches the last game played from the library with its exact saved configuration.
 
 ## Requirements
 
@@ -46,12 +51,12 @@ A script providing a Terminal User Interface (TUI) using `gum` to launch Windows
 
 3.  The main menu will appear:
     * **New Game**: Select an executable and configure its launch options. You can then add it to your library.
-    * **Game Library**: View, manage, and launch games you've previously saved.
+    * **Game Library**: Search, filter, view, manage (Launch, Edit, View Details, Delete), and launch games you've previously saved.
     * **Quick Launch**: Launch the last game you played from the library using its saved settings.
     * **Exit**: Close the launcher.
 4.  Follow the TUI prompts to select the game, Proton version, and options.
 
-5.  Optionally create an alias for the tool in your shell configuration file.
+5.  Optionally create an alias for the tool in your shell configuration file for easier access.
 
 ## Configuration (Optional)
 
@@ -106,7 +111,7 @@ If this file doesn't exist, the script uses built-in defaults.
 * **Format**: Flags within double quotes.
 * **Example**:
     ```bash
-    DEFAULT_GAMESCOPE_PARAMS="-f -b --backend wayland -W 1920 -H 1080"
+    DEFAULT_GAMESCOPE_PARAMS="-W 1920 -H 1080 -f -b --backend wayland"
     ```
 
 #### `UNIVERSAL_PREFIX_NAME`
@@ -118,6 +123,21 @@ If this file doesn't exist, the script uses built-in defaults.
     ```bash
     UNIVERSAL_PREFIX_NAME="umu_shared_games"
     ```
+
+#### TUI Color Configuration
+
+Customize the appearance of the TUI. Values are typically [ANSI color codes](https://en.wikipedia.org/wiki/ANSI_escape_code#Colors).
+
+* `HEADER_FG_COLOR`: Foreground color for headers. (Default: `"28"`)
+* `SELECTED_FG_COLOR`: Foreground color for selected items in lists/menus. (Default: `"205"`)
+* `CURSOR_FG_COLOR`: Foreground color for the cursor in input fields/choosers. (Default: `"28"`)
+* `INFO_FG`: Foreground color for informational messages. (Default: `"99"`)
+* `SUCCESS_FG`: Foreground color for success messages. (Default: `"40"`)
+* `WARNING_FG`: Foreground color for warning messages. (Default: `"214"`)
+* `ERROR_FG`: Foreground color for error messages. (Default: `"196"`)
+* `DEP_LABEL_FG`: Foreground color for dependency check labels. (Default: `"240"`)
+* `DEP_FOUND_FG`: Foreground color for "Found" status in dependency checks. (Default: `"40"`)
+* `DEP_MISSING_FG`: Foreground color for "Missing" status in dependency checks. (Default: `"196"`)
 
 ### Example `config.conf`
 
@@ -133,9 +153,14 @@ DEFAULT_GAMESCOPE_PARAMS="-b --backend wayland --grab"
 
 # Custom shared prefix name (for new games, can be overridden in library)
 UNIVERSAL_PREFIX_NAME="umu_shared_prefix"
-```
-#### `Data Files`
 
-* **Game Library**: Configurations for saved games are stored as JSON files in ~/.local/share/umu-launch-gum/library/.
-* **Last Played Game (for Quick Launch)**: The path to the last launched game's library configuration is stored in ~/.local/share/umu-launch-gum/last_game_config.jsonpath.
-* **Logs**: Launch logs are stored in ~/.local/share/umu-launch-gum/logs/.
+# --- TUI Color Customization Examples ---
+# HEADER_FG_COLOR="33" # A nice blue
+# SELECTED_FG_COLOR="220" # A bright yellow for selections
+# INFO_FG="245" # A lighter grey for info messages
+```
+Data Files
+
+    * Game Library: Configurations for saved games are stored as JSON files in ~/.local/share/umu-launch-gum/library/.
+    * Last Played Game (for Quick Launch): The path to the last launched game's library configuration is stored in ~/.local/share/umu-launch-gum/last_game_config.jsonpath.
+    * Logs: Launch logs are stored in ~/.local/share/umu-launch-gum/logs/.
