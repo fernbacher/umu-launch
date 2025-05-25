@@ -325,6 +325,7 @@ configure_environment_and_command() {
     
     for opt in "${SELECTED_OPTIONS[@]}"; do
         case "$opt" in
+            *"Gamescope"*) ;; 
             *"MangoHud"*) [[ "$mangohud_available" -eq 1 ]] && { LAUNCH_ENV["MANGOHUD"]="1"; use_mangohud=1; };;
             *"NVAPI"*) LAUNCH_ENV["PROTON_ENABLE_NVAPI"]="1"; LAUNCH_ENV["DXVK_ENABLE_NVAPI"]="1"; use_nvapi=1;;
             *"DXVK Async"*) LAUNCH_ENV["DXVK_ASYNC"]="1"; use_dxvk_async=1;;
@@ -353,26 +354,18 @@ configure_environment_and_command() {
         done
     fi
 
-    local env_prefix_array=()
-    if (( ${#LAUNCH_ENV[@]} > 0 )); then 
-        env_prefix_array+=("env")
-        local sorted_env_keys
-        IFS=$'\n' sorted_env_keys=($(printf "%s\n" "${!LAUNCH_ENV[@]}" | sort))
-        unset IFS
-        for key in "${sorted_env_keys[@]}"; do
-            env_prefix_array+=("${key}=${LAUNCH_ENV[$key]}")
-        done
+    local umu_command_and_args=("umu-run" "$GAME_BASENAME")
+    if [[ ${#custom_args_for_umu[@]} -gt 0 ]]; then
+        umu_command_and_args+=("${custom_args_for_umu[@]}")
     fi
 
-    local base_command_array=("umu-run" "$GAME_BASENAME")
-    [[ ${#custom_args_for_umu[@]} -gt 0 ]] && base_command_array+=("${custom_args_for_umu[@]}")
+    local command_to_be_wrapped=("${umu_command_and_args[@]}")
 
-    local command_being_wrapped=("${base_command_array[@]}")
     local actual_gamescope_enabled=0
     if [[ "$GAMESCOPE_SELECTED" -eq 1 && "$gamescope_available" -eq 1 ]]; then
         if [[ -n "$GAMESCOPE_FLAGS_TO_USE" ]]; then
             read -r -a gs_flags <<< "$GAMESCOPE_FLAGS_TO_USE"
-            command_being_wrapped=("gamescope" "${gs_flags[@]}" "--" "${command_being_wrapped[@]}")
+            command_to_be_wrapped=("gamescope" "${gs_flags[@]}" "--" "${command_to_be_wrapped[@]}")
             actual_gamescope_enabled=1
         else
             gum_log WARNING_STYLE_ARGS "Gamescope selected but no flags provided; not using Gamescope."
@@ -382,18 +375,22 @@ configure_environment_and_command() {
     fi
 
     local actual_gamemode_enabled=0
-    if [[ "$use_gamemode" -eq 1 ]]; then
-        command_being_wrapped=("gamemoderun" "${command_being_wrapped[@]}")
+    if [[ "$use_gamemode" -eq 1 ]]; then 
+        command_to_be_wrapped=("gamemoderun" "${command_to_be_wrapped[@]}")
         actual_gamemode_enabled=1
-    elif [[ "$use_gamemode" -eq 1 && "$gamemode_available" -ne 1 ]]; then # Should have been caught by option_availability
-         gum_log WARNING_STYLE_ARGS "GameMode selected but not available (should not happen here)."
     fi
     
-    if [[ ${#env_prefix_array[@]} -gt 0 ]]; then
-        FINAL_COMMAND=("${env_prefix_array[@]}" "${command_being_wrapped[@]}")
-    else
-        FINAL_COMMAND=("${command_being_wrapped[@]}")
+    FINAL_COMMAND=()
+    if (( ${#LAUNCH_ENV[@]} > 0 )); then
+        FINAL_COMMAND+=("env")
+        local sorted_env_keys
+        IFS=$'\n' sorted_env_keys=($(printf "%s\n" "${!LAUNCH_ENV[@]}" | sort))
+        unset IFS
+        for key in "${sorted_env_keys[@]}"; do
+            FINAL_COMMAND+=("${key}=${LAUNCH_ENV[$key]}")
+        done
     fi
+    FINAL_COMMAND+=("${command_to_be_wrapped[@]}")
 
     _SUMMARY_GAMESCOPE_ENABLED=$actual_gamescope_enabled
     _SUMMARY_GAMEMODE_ENABLED=$actual_gamemode_enabled
@@ -404,7 +401,6 @@ configure_environment_and_command() {
     _SUMMARY_VK_VALIDATE_ENABLED=$use_vk_validate
     _SUMMARY_SYNC_METHOD_NAME=$sync_method_name_for_summary
 }
-
 
 execute_game_directly() {
     if [[ "$IS_QUICK_LAUNCHING" -eq 1 ]]; then
