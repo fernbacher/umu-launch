@@ -739,9 +739,44 @@ open_game_library_flow() {
             if gum confirm "Return to Main Menu?"; then return; else continue; fi
         fi
 
+        local all_lines_from_list_output=()
+        mapfile -t all_lines_from_list_output < <(printf "%s\n" "$list_output")
+
         local game_display_names_array=()
-        mapfile -t game_display_names_array < <(echo "$list_output" | sed -n '/---SEPARATOR_FOR_PATHS---/q;p')
+        local game_file_paths_array=()
+        local separator_found=0
+        local parsing_paths=0 
+
+        for line in "${all_lines_from_list_output[@]}"; do
+            if [[ "$line" == "---SEPARATOR_FOR_PATHS---" ]]; then
+                parsing_paths=1
+                separator_found=1 
+                continue 
+            fi
+
+            if [[ $parsing_paths -eq 0 ]]; then
+                game_display_names_array+=("$(echo "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')")
+            else
+                game_file_paths_array+=("$line") 
+            fi
+        done
         
+        if [[ $separator_found -eq 0 && ${#all_lines_from_list_output[@]} -gt 0 && "$list_output" != "__EMPTY__" ]]; then
+            gum_log ERROR_STYLE_ARGS "Library data is malformed (separator missing)."
+            if gum confirm "Return to Main Menu?"; then return; else continue; fi
+        fi
+
+        if [[ ${#game_display_names_array[@]} -eq 0 && "$list_output" != "__EMPTY__" ]]; then 
+             gum_log INFO_STYLE_ARGS "No games found in library to display (after parsing)."
+             if gum confirm "Return to Main Menu?"; then return; else continue; fi
+        fi
+        
+        if [[ $separator_found -eq 1 && ${#game_display_names_array[@]} -ne ${#game_file_paths_array[@]} ]]; then
+            gum_log ERROR_STYLE_ARGS "Mismatch between game names and paths counts. Library may be corrupt."
+            gum_log INFO_STYLE_ARGS "Name count: ${#game_display_names_array[@]}, Path count: ${#game_file_paths_array[@]}"
+            if gum confirm "Return to Main Menu?"; then return; else continue; fi
+        fi
+
         local chosen_game_display_name
         chosen_game_display_name=$(printf "%s\n" "${game_display_names_array[@]}" | gum filter --header "Search & Select Game (Esc to cancel)" --height 15 --prompt "Filter: " --value "" --match.foreground "$SELECTED_FG_COLOR" --prompt.foreground "$HEADER_FG_COLOR")
         local gum_filter_exit_code=$?
@@ -750,9 +785,6 @@ open_game_library_flow() {
             return 
         fi
         
-        local game_file_paths_array=()
-        mapfile -t game_file_paths_array < <(echo "$list_output" | sed -n -e '/---SEPARATOR_FOR_PATHS---/,$p' -e '1d')
-
         local chosen_game_display_name_trimmed
         chosen_game_display_name_trimmed=$(echo "$chosen_game_display_name" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
         
